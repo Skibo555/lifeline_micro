@@ -1,0 +1,10 @@
+aio-pika==9.5.5
+aiormq==6.8.1
+exceptiongroup==1.2.2
+idna==3.10
+multidict==6.1.0
+pamqp==3.3.0
+pika==1.3.2
+propcache==0.3.0
+python-dotenv==1.0.1
+yarl==1.18.3
