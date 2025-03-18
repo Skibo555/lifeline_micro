@@ -21,6 +21,8 @@ class UserForm(UsernamePasswordForm):
     state: str
     zip_code: int = None
     phone: str = None
+    long: Optional[float] = None
+    lat: Optional[float] = None
 
 
 class UserUpdateForm(BaseModel):

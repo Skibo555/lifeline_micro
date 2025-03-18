@@ -36,8 +36,6 @@ def is_hospital_admin(user: dict):
 
 
 def has_role(required_roles: list, user: dict):
-    print(f"This is coming from the has_role function: {user['role']}")
-
     if user["role"] not in required_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Access denied: Requires one of {required_roles}")
     return user

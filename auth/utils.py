@@ -4,9 +4,8 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
-from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, Depends, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.sql import func
 
 
 from dotenv import load_dotenv
@@ -103,5 +102,56 @@ def replace_val(update_data: dict, user):
         if value is None:  # If field is None, replace it with user's existing value
             update_data[key] = getattr(user, key, None)
     return update_data
+
+
+# utility to find a match for a request
+async def match(request: dict, radius_km: float = 10, db: Session = Depends(get_db)):
+    """Find users within a radius using the Haversine formula"""
+    data = request
+    hospital_lat = data["lat"]
+    hospital_long = data["long"]
+    distance_expr = 6371 * func.acos(
+        func.cos(func.radians(hospital_lat)) * func.cos(func.radians(User.lat)) *
+        func.cos(func.radians(User.long) - func.radians(hospital_long)) +
+        func.sin(func.radians(hospital_lat)) * func.sin(func.radians(User.lat))
+    )
+
+    return db.query(User, distance_expr.label("distance")) \
+        .filter(User.lat.isnot(None), User.long.isnot(None)) \
+        .having(distance_expr <= radius_km) \
+        .order_by(distance_expr) \
+        .all()
+
+    # Example usage
+    # db = SessionLocal()
+    # user_lat = 4.8156  # Replace with actual user latitude
+    # user_long = 7.0498  # Replace with actual user longitude
+    #
+    # nearby_users = find_nearby_users(db, user_lat, user_long)
+    # db.close()
+    #
+    # # Print result
+    # for user, distance in nearby_users:
+    #     print(f"{user.username} is {distance:.2f} km away")
+
+
+def match_users(request_data: dict, db: Session):
+    """Find users within 10km using the Haversine formula"""
+    hospital_lat = request_data["lat"]
+    hospital_long = request_data["long"]
+
+    distance_expr = 6371 * func.acos(
+        func.cos(func.radians(hospital_lat)) * func.cos(func.radians(User.lat)) *
+        func.cos(func.radians(User.long) - func.radians(hospital_long)) +
+        func.sin(func.radians(hospital_lat)) * func.sin(func.radians(User.lat))
+    )
+
+    matches = db.query(User, distance_expr.label("distance")) \
+        .filter(User.lat.isnot(None), User.long.isnot(None)) \
+        .having(distance_expr <= 10) \
+        .order_by(distance_expr) \
+        .all()
+
+    return matches
 
 

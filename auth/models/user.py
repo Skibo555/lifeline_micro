@@ -1,6 +1,6 @@
 from enum import unique
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, create_engine
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, create_engine, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, JSON
 import uuid
@@ -30,6 +30,9 @@ class User(Base):
     phone = Column(String(15))
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    lat = Column(Float)
+    long = Column(Float)
+
 
     hospital_created = Column(String(50), unique=True)
 

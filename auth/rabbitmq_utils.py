@@ -2,6 +2,12 @@ import json
 from datetime import datetime
 import aio_pika
 import asyncio
+from database import get_db
+from models import User
+from sqlalchemy.orm import Session
+from sqlalchemy import update as sqlalchemy_update
+
+
 
 RABBITMQ_URL = "amqp://localhost/"
 
@@ -9,7 +15,6 @@ def json_serializer(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()  # Converts datetime to a string
     raise TypeError(f"Type {type(obj)} is not serializable")
-
 
 async def publish_event(event_name: str, data: dict, exchange_name: str = "events"):
     """
@@ -41,17 +46,41 @@ async def process_message(message: aio_pika.IncomingMessage):
     async with message.process():  # Auto-acknowledge after processing
         body = message.body.decode()
         data = json.loads(body)
+        # print(data)
+
+        # db: Session = get_db()
+        # stmt = sqlalchemy_update(User).where(User.user_id == data['user_id']).values({"hospital_created": data["hospital_id"]})
+        # db.execute(stmt)
+        # db.commit()
+        # print(data)
 
         event_name = message.routing_key  # Get event type
 
         if event_name == "user.created":
             print(f"👤 New user registered: {data['data']}")
-        elif event_name == "blood.request.created":
-            print(f"🩸 New blood request: {data['data']}")
-        elif event_name == "hospital.created":
-            print(f"🏥 New hospital registered: {data['data']}")
+        elif event_name == "user.logs.in":
+            print(f"🏥 {data['data']['username']} is now online: {data['data']}")
         elif event_name == "request.created":
-            print(f"A new request has been created: {data['data']}")
+            print(f"🩸 New blood request: {data['data']}")
+
+        elif event_name == "request.accepted":
+            print(f"🩸 Blood request accepted: {data['data']}")
+
+            # db: Session = next(get_db())
+            # stmt = sqlalchemy_update(User).where(User.user_id == data['data']["created_by"]).values({"hospital_created": data["data"]["hospital_id"]})
+            # db.execute(stmt)
+            # db.commit()
+
+        elif event_name == "hospital.created":
+            # print(f"🏥 New hospital registered: {data['data']}")
+            print(f"This event occured: {data}")
+            db: Session = next(get_db())
+            stmt = sqlalchemy_update(User).where(User.user_id == data['data']["created_by"]).values({"hospital_created": data["data"]["hospital_id"]})
+            db.execute(stmt)
+            db.commit()
+        elif event_name == "hospital.updated":
+            print(f"🏥 {data['data']['hospital_name']} has updated their details: {data['data']}")
+
 
 async def consume():
     """
@@ -68,13 +97,20 @@ async def consume():
 
     # Bind queue to exchange with routing keys for specific events
     await queue.bind(exchange, routing_key="user.created")
-    await queue.bind(exchange, routing_key="blood.request.created")
+    await queue.bind(exchange, routing_key="request.created")
     await queue.bind(exchange, routing_key="hospital.created")
+    await queue.bind(exchange, routing_key="hospital.updated")
+    await queue.bind(exchange, routing_key="user.logs.in")
+    await queue.bind(exchange, routing_key="request.accepted")
+    await queue.bind(exchange, routing_key="request.cancelled")
+
+
+
 
     # Start consuming messages
     await queue.consume(process_message)
 
-    print(" [*] Waiting for events in Blood Request Service...")
+    print(" [*] Waiting for events in Notification Service...")
     await asyncio.Future()  # Keep running forever
 
 if __name__ == "__main__":

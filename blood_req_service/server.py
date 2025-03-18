@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import update as sqlalchemy_update
@@ -19,6 +20,10 @@ router = APIRouter(tags=["Blood request service"], prefix="/requests")
 async def create_request(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
     user_info = data.get('user_data')
+    has_role(required_roles=[UserRole.DONOR, UserRole.ADMIN,
+                        UserRole.HOSPITAL_ADMIN, UserRole.REQUESTER,
+                        UserRole.VOLUNTEER], user=user_info)
+    
     request_data = data.get('request')
     hospital_id = data.get('hospital_id')
 
@@ -37,7 +42,22 @@ async def create_request(request: Request, db: Session = Depends(get_db)):
         db.add(new_request)
         db.commit()
         db.refresh(new_request)
-        publish_event('request.created', new_request)
+
+        res = {
+            "description": new_request.description,
+            "request_type": new_request.request_type,
+            "request_status": new_request.request_status,
+            "hospital_id": str(new_request.hospital_id),
+            "requester_id": str(new_request.requester_id),
+            "blood_type": new_request.blood_type,
+            "quantity": new_request.quantity,
+            "accepted_user_id": str(new_request.accepted_user_id),
+            "created_at": str(new_request.created_at),
+            "updated_at": str(new_request.updated_at)
+        }
+
+        await publish_event(event_name='request.created', data=res)
+        return new_request
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -82,46 +102,49 @@ async def get_requests(request: Request, db: Session = Depends(get_db)):
                         UserRole.HOSPITAL_ADMIN, UserRole.REQUESTER,
                         UserRole.VOLUNTEER], user=current_user)
     
-    requests = db.query(RequestModel).all()
-    print(request)
+    requests = db.query(RequestModel).where(RequestModel.request_status == req["status"].upper()).all()
+
     if not requests:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No requests found")
     return requests
 
 
-@router.patch("{request_id}/cancel", status_code=status.HTTP_200_OK)
+@router.patch("/{request_id}/cancel", status_code=status.HTTP_200_OK)
 async def cancel_request(request: Request, db: Session = Depends(get_db)):
+    req = await request.json()
+    print(req)
+    request_id = req.get('request_id')
+    current_user = req.get('user')
+    has_role(required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
+
+    request = db.query(RequestModel).filter(RequestModel.request_id == request_id, RequestModel.requester_id == current_user["user_id"]).first()
+    print(request)
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found or you are not your request owner")
+    # if request.requester_id != current_user['user_id']:
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the owner of this request, only the owner can cancel it.")
+    stmt = sqlalchemy_update(RequestModel).where(RequestModel.request_id == request_id).values({"request_status": "CANCELLED"})
+    db.execute(stmt)
+    db.commit()
+    await publish_event(event_name='request.cancelled', data=req)
+    return "You have successfully cancelled the request!"
+
+
+@router.patch("/{request_id}/accept", status_code=status.HTTP_200_OK)
+async def accept_request(request: Request, db: Session = Depends(get_db)):
     req = await request.json()
     request_id = req.get('request_id')
     current_user = req.get('user')
     has_role(required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
 
-    request = db.query(RequestModel).filter(RequestModel.requester_id == request_id, RequestModel.requester_id == current_user["user_id"]).first()
+    request = db.query(RequestModel).filter(RequestModel.request_id == request_id).first()
+    
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found or you are not your request owner")
     # if request.requester_id != current_user['user_id']:
     #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the owner of this request, only the owner can cancel it.")
-    stmt = sqlalchemy_update(RequestModel).where(RequestModel.request_id == request_id).values(request_status=RequestStatus.CANCELLED)
+    stmt = sqlalchemy_update(RequestModel).where(RequestModel.request_id == request_id).values({"request_status": "ACCEPTED"})
     db.execute(stmt)
     db.commit()
-    publish_event('request.cancelled', request)
-
-
-@router.patch("{request_id}/accept", status_code=status.HTTP_200_OK)
-async def accept_request(request: Request, db: Session = Depends(get_db)):
-    req = await request.json()
-    request_id = req.get('request_id')
-    current_user = req.get('user')
-    has_role(required_roles=[UserRole.DONOR, UserRole.ADMIN,
-                        UserRole.HOSPITAL_ADMIN, UserRole.REQUESTER,
-                        UserRole.VOLUNTEER], user=current_user)
-    request = db.query(RequestModel).filter(RequestModel.requester_id == request_id).first()
-    if not request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found.")
-    # if request.requester_id != current_user['user_id']:
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the owner of this request, only the owner can cancel it.")
-
-    stmt = sqlalchemy_update(RequestModel).where(RequestModel.request_id == request_id).values(request_status=RequestStatus.CANCELLED)
-    db.execute(stmt)
-    db.commit()
-    publish_event('request.accepted', request)
+    await publish_event(event_name='request.accepted', data=req)
+    return "You have successfully accepted the request!"

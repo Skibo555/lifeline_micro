@@ -24,6 +24,7 @@ async def create(request: Request, db: Session = Depends(get_db)):
         has_role(
             required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
         existing_hospitals = db.query(Hospital).filter(Hospital.created_by == current_user["user_id"]).first()
+        print(existing_hospitals)
         if existing_hospitals:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can not have more than one hospital.")
         if not existing_hospitals:
@@ -37,12 +38,30 @@ async def create(request: Request, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(new_hospital)
 
+            res = {
+                "hospital_id": str(new_hospital.hospital_id),
+                "hospital_name": new_hospital.name,
+                "address": new_hospital.address,
+                "email": new_hospital.email,
+                "city": new_hospital.city,
+                "state": new_hospital.state,
+                "type": new_hospital.type,
+                "status": new_hospital.zip_code,
+                "zip_code": new_hospital.zip_code,
+                "phone": new_hospital.phone,
+                "created_at": str(new_hospital.created_at),
+                "updated_at": str(new_hospital.updated_at),
+                "created_by": str(new_hospital.created_by)
+            }
+
             # Publish event to RabbitMQ
-            #await publish_event("hospital.created", **new_hospital.__dict__)
-            return new_hospital
+            print(new_hospital)
+            await publish_event(event_name="hospital.created", data=res)
+            return res
 
     except Exception as ex:
         print(ex)
+        db.rollback()
         return ex
 
 @router.put('', status_code=status.HTTP_200_OK)

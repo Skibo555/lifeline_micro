@@ -19,6 +19,9 @@ class UserCreate(BaseModel):
     state: str
     zip_code: int = None
     phone: str = None
+    lat: Optional[float] = None
+    long: Optional[float] = None
+
 
     class Config:
         from_attributes = True
@@ -44,14 +47,16 @@ class UserResponse(BaseModel):
     zip_code: int = None
     phone: str = None
     hospital_created: Optional[str] = None
+    lat: Optional[float] = None
+    long: Optional[float] = None
 
     @field_validator('user_id', mode='before')
     @classmethod
-    def cast_instance(cls, value: Any) -> str:
+    def cast_instance(cls, value: Any) -> str | None:
         if not isinstance(value, str):
         # convert the value to a string
             return str(value)
-        
+
 
 
     class Config:

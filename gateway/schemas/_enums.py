@@ -47,6 +47,6 @@ class RequestStatus(Enum):
     ACCEPTED = 'accepted'
     REJECTED = 'rejected'
     COMPLETED = 'completed'
-    CANCELED = 'canceled'
+    CANCELLED = 'cancelled'
     EXPIRED = 'expired'
 

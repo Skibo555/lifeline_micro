@@ -12,8 +12,8 @@ class Request(Base):
 
     request_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     description = Column(String(250))
-    request_type = Column(String(15), nullable=False, default=RequestType.NORMAL)
-    request_status = Column(String(15), nullable=False, default=RequestStatus.PENDING)
+    request_type = Column(String(15), nullable=False, default=RequestType.NORMAL.value)
+    request_status = Column(String(15), nullable=False, default=RequestStatus.PENDING.value)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     hospital_id = Column(UUID(as_uuid=True), nullable=False)

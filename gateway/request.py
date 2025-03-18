@@ -32,15 +32,16 @@ async def get_requests(request_status: RequestStatus, user = Depends(verify_toke
 
 
 # cancel a request
-@router.put("/cancel", status_code=status.HTTP_200_OK)
-async def cancle_request(request_status: RequestStatus, user = Depends(verify_token)):
-    response = access.get_requests(user=user, req_status=request_status)
+@router.patch("/{request_id}/cancel", status_code=status.HTTP_200_OK)
+async def cancle_request(request_id: str, user = Depends(verify_token)):
+    response = access.cancel_request(user=user, request_id=request_id)
     return response
 
 
 # accept a request
-@router.put("/accept", status_code=status.HTTP_200_OK)
-async def accept(request_status: RequestStatus, user = Depends(verify_token)):
-    response = access.get_requests(user=user, req_status=request_status)
+@router.patch("/{request_id}/accept", status_code=status.HTTP_200_OK)
+async def accept(request_id: str, user = Depends(verify_token)):
+    print(request_id)
+    response = access.accept_request(user=user, request_id=request_id)
     return response
 

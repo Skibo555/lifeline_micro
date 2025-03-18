@@ -206,24 +206,29 @@ def make_request(user: dict, req: dict):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
 
     try:
-        hospital_id = user.get('hospital_created')
+        hospital_id = res.get('hospital_created')
+        print(type(req["request_type"].name))
+        # convert the enums types to string
+        req["request_type"] = req["request_type"].name
+        req["request_status"] = req["request_status"].name
+        req["blood_type"] = req["blood_type"].name
         details = {
             "request": req,
             "user_data": user,
             "hospital_id": hospital_id
         }
-        request_serv = requests.get(
-            f"http://0.0.0.0:8000/requests/create", json=details
+        request_serv = requests.post(
+            f"http://0.0.0.0:8989/requests/create", json=details
         )
         if request_serv.status_code != 201:
             return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"{request_serv.status_code}")
-        return "Request created successfully!"
+        return request_serv.json()
         # elif not res['hospital_created']:
         #     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
         # else:
         #     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hospital not created by the user.")
     except Exception as ex:
-        print(f"From the exceptions: {ex}")
+        
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))    
 
 def get_request_single(user: dict, request_id: str):
@@ -242,17 +247,18 @@ def get_request_single(user: dict, request_id: str):
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     except Exception as ex:
-        print(ex)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))
 
 
 def get_requests(user: dict, req_status):
+    print("In get requests")
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
     request_data = {
         "user": user,
         "status": req_status
     }
+    print(req_status)
     try:
         response = requests.get(
                 f"http://0.0.0.0:8989/requests", json=request_data
@@ -275,7 +281,7 @@ def cancel_request(user: dict, request_id: str):
     }
     try:
         response = requests.patch(
-                f"http://0.0.0.0:8989/hospitals/{request_id}/cancel", json=request_data
+                f"http://0.0.0.0:8989/requests/{request_id}/cancel", json=request_data
             )
         if response.status_code == 200:
             return response.json()
@@ -291,9 +297,10 @@ def accept_request(user: dict, request_id: str):
         "request_id": request_id,
         "user": user,
     }
+    print(request_id)
     try:
         response = requests.patch(
-                f"http://0.0.0.0:8989/hospitals/{request_id}/accept", json=request_data
+                f"http://0.0.0.0:8989/requests/{request_id}/accept", json=request_data
             )
         if response.status_code == 200:
             return response.json()

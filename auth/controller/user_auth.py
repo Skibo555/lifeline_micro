@@ -1,9 +1,12 @@
+import json
+
 from fastapi import APIRouter, status, Depends, Response, Request
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import update as sqlalchemy_update
 
 from database import get_db
+from rabbitmq_utils import publish_event
 
 from schemas.user import UserCreate, UserResponse, UserListResponse, LoginForm
 from models.user import User
@@ -21,36 +24,53 @@ app = APIRouter(tags=["Authentication Service"], prefix="/auth/users")
 
 
 # Register a new user
-@app.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    print(user)
+@app.post("/register", status_code=status.HTTP_201_CREATED)
+async def register_user(user: UserCreate, db: Session = Depends(get_db)):
     try:
         # Check if user already exists
         existing_user = db.query(User).filter(User.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
-    except Exception as ex:
-        print(ex)
-        return ex
-    # Hash password & save user
-    hashed_password = hash_password(user.password)
-    user.password = hashed_password
-    new_user = User(**user.model_dump())
-    try:
+        # Hash password & save user
+        hashed_password = hash_password(user.password)
+        user.password = hashed_password
+        new_user = User(**user.model_dump())
+        # try:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        message = "User account created successfully!"
+        user_data = {
+            "username": user.username,
+            "user_id": str(new_user.user_id),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "created_at": str(new_user.created_at),
+            "updated_at": str(new_user.updated_at),
+            "is_active": user.is_active,
+            "email": user.email,
+            "role": user.role,
+            "state": user.state,
+            "city": user.city,
+            "long": user.long,
+            "lat": user.lat
+        }
 
-        return new_user
+        await publish_event(event_name="user.created", data=user_data)
+
+        return {
+            "message": message,
+            "data": user_data
+        }
+
     except Exception as ex:
         print(ex)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @app.post("/login", status_code=status.HTTP_200_OK)
-def login(form_data: LoginForm, db: Session = Depends(get_db)):
-    print(form_data)
-    
+async def login(form_data: LoginForm, db: Session = Depends(get_db)):
+
     # Check if user exists
     try:
         user = db.query(User).filter(User.username == form_data.username).first()
@@ -73,8 +93,11 @@ def login(form_data: LoginForm, db: Session = Depends(get_db)):
         "email": user.email,
         "role": user.role,
         "state": user.state,
-        "city": user.city
+        "city": user.city,
+        "long": user.long,
+        "lat": user.lat
     }
+    await publish_event(event_name="user.logs.in", data=user_data)
     # print({"access_token": access_token, "token_type": "Bearer", "data": user_data})
     return {"access_token": access_token, "token_type": "Bearer", "data": user_data}
 

@@ -2,56 +2,71 @@ import json
 import aio_pika
 import asyncio
 
-RABBITMQ_URL = "amqp://guest:guest@localhost/"
+RABBITMQ_URL = "amqp://localhost/"
 
-async def publish_event(event_name: str, message: dict):
-    """Publish an event to RabbitMQ using a topic exchange."""
+async def publish_event(event_name: str, data: dict, exchange_name: str = "events"):
+    """
+    Publishes an event to a RabbitMQ exchange (direct exchange).
+    """
     connection = await aio_pika.connect_robust(RABBITMQ_URL)
     async with connection:
         channel = await connection.channel()
 
-        # Declare an exchange (topic-based)
-        exchange = await channel.declare_exchange("events_exchange", aio_pika.ExchangeType.TOPIC)
+        # Declare exchange (direct type)
+        exchange = await channel.declare_exchange(exchange_name, aio_pika.ExchangeType.DIRECT)
 
-        body = json.dumps(message).encode()
+        # Convert message to JSON
+        message_body = json.dumps({"event": event_name, "data": data})
 
-        # Publish message to RabbitMQ
+        # Publish message with routing key (event_name)
         await exchange.publish(
-            aio_pika.Message(body=body),
-            routing_key=event_name
+            aio_pika.Message(body=message_body.encode(), content_type="application/json"),
+            routing_key=event_name  # Direct exchange uses routing key
         )
 
-        print(f" [x] Sent '{event_name}': {message}")
+        print(f"✅ Published event '{event_name}' to exchange '{exchange_name}'")
 
-async def process_matched_donor(message: aio_pika.IncomingMessage):
-    """Process blood match event and update request."""
-    async with message.process():
-        data = json.loads(message.body)
-        print(f" [x] Matched Donor Found: {data}")
 
-        # Example: Update the blood request in the database
-        request_id = data.get("request_id")
-        donor_id = data.get("donor_id")
-        print(f"Updating blood request {request_id} with donor {donor_id}")
+async def process_message(message: aio_pika.IncomingMessage):
+    """
+    Async function to process incoming messages.
+    """
+    async with message.process():  # Auto-acknowledge after processing
+        body = message.body.decode()
+        data = json.loads(body)
 
-async def consume_events():
+        event_name = message.routing_key  # Get event type
+
+        if event_name == "user.created":
+            print(f"👤 New user registered: {data['data']}")
+        elif event_name == "blood.request.created":
+            print(f"🩸 New blood request: {data['data']}")
+        elif event_name == "hospital.created":
+            print(f"🏥 New hospital registered: {data['data']}")
+
+async def consume():
+    """
+    Async consumer to listen for events.
+    """
     connection = await aio_pika.connect_robust(RABBITMQ_URL)
-    async with connection:
-        channel = await connection.channel()
+    channel = await connection.channel()
 
-        # Declare exchange
-        exchange = await channel.declare_exchange("events_exchange", aio_pika.ExchangeType.TOPIC)
+    # Declare exchange
+    exchange = await channel.declare_exchange("events", aio_pika.ExchangeType.DIRECT)
 
-        # Declare queue and bind to "blood_request.matched"
-        queue = await channel.declare_queue("", durable=True)
-        await queue.bind(exchange, routing_key="blood_request.matched")
+    # Declare queue
+    queue = await channel.declare_queue("event_queue", durable=True)
 
-        print(" [*] Waiting for matched blood donors...")
+    # Bind queue to exchange with routing keys for specific events
+    await queue.bind(exchange, routing_key="user.created")
+    await queue.bind(exchange, routing_key="blood.request.created")
+    await queue.bind(exchange, routing_key="hospital.created")
 
-        # Consume messages
-        await queue.consume(process_matched_donor)
+    # Start consuming messages
+    await queue.consume(process_message)
 
-        await asyncio.Future()  # Keep listening
+    print(" [*] Waiting for events in Notification Service...")
+    await asyncio.Future()  # Keep running forever
 
-#asyncio.run(consume_events())
-
+if __name__ == "__main__":
+    asyncio.run(consume())  # Run consumer
