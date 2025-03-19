@@ -17,22 +17,21 @@ router = APIRouter(prefix="/hospitals", tags=["Hospital Management"])
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
 async def create(request: Request, db: Session = Depends(get_db)):
-    try:
-        data = await request.json()
-        current_user = data["user_data"]
-        hospital_data = data["hospital_data"]
-        has_role(
-            required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
-        existing_hospitals = db.query(Hospital).filter(Hospital.created_by == current_user["user_id"]).first()
-        print(existing_hospitals)
-        if existing_hospitals:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can not have more than one hospital.")
-        if not existing_hospitals:
-            hospital_data["created_by"] = current_user["user_id"]
-            hospitals = db.query(Hospital).filter(Hospital.name == hospital_data["name"]).first()
-            if hospitals:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="There is an hospital with the email or name you used. Chose another email or name.")
-            # try:
+    
+    data = await request.json()
+    current_user = data["user_data"]
+    hospital_data = data["hospital_data"]
+    has_role(
+        required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
+    existing_hospitals = db.query(Hospital).filter(Hospital.created_by == current_user["user_id"]).first()
+    if existing_hospitals:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can not have more than one hospital.")
+    if not existing_hospitals:
+        hospital_data["created_by"] = current_user["user_id"]
+        hospitals = db.query(Hospital).filter(Hospital.name == hospital_data["name"]).first()
+        if hospitals:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="There is an hospital with the email or name you used. Chose another email or name.")
+        try:
             new_hospital = Hospital(**hospital_data)
             db.add(new_hospital)
             db.commit()
@@ -55,14 +54,13 @@ async def create(request: Request, db: Session = Depends(get_db)):
             }
 
             # Publish event to RabbitMQ
-            print(new_hospital)
             await publish_event(event_name="hospital.created", data=res)
             return res
 
-    except Exception as ex:
-        print(ex)
-        db.rollback()
-        return ex
+        except Exception as ex:
+            db.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="We are not able to successfully create an hospital for you, something unexpected happened, try again!")
+
 
 @router.put('', status_code=status.HTTP_200_OK)
 async def update(request: Request, db: Session = Depends(get_db)):
@@ -131,5 +129,5 @@ async def delete(request: Request, db: Session = Depends(get_db)):
     db.delete(existing_hospitals)
 
     # Publish event to RabbitMQ
-    await publish_event("hospital.deleted", existing_hospitals.__dict__)
+    await publish_event(event_name="hospital.deleted", data=existing_hospitals.__dict__)
     db.commit()

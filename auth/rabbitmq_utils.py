@@ -50,25 +50,31 @@ async def process_message(message: aio_pika.IncomingMessage):
 
         event_name = message.routing_key  # Get event type
 
-        if event_name == "user.created":
-            print(f"👤 New user registered: {data['data']}")
-        elif event_name == "user.logs.in":
+        # if event_name == "user.created":
+        #     print(f"👤 New user registered: {data['data']}")
+        if event_name == "user.logs.in":
             print(f"🏥 {data['data']['username']} is now online: {data['data']}")
-        elif event_name == "request.created":
-            print(f"🩸 New blood request created: {data['data']}")
+        # elif event_name == "request.created":
+        #     print(f"🩸 New blood request created: {data['data']}")
 
         elif event_name == "request.accepted":
             print(f"🩸 Blood request accepted: {data['data']}")
 
         elif event_name == "hospital.created":
-            # print(f"🏥 New hospital registered: {data['data']}")
-            print(f"This event occured: {data}")
+            print(f"🏥 New hospital registered: {data['data']}")
             db: Session = next(get_db())
             stmt = sqlalchemy_update(User).where(User.user_id == data['data']["created_by"]).values({"hospital_created": data["data"]["hospital_id"]})
             db.execute(stmt)
             db.commit()
         elif event_name == "hospital.updated":
             print(f"🏥 {data['data']['hospital_name']} has updated their details: {data['data']}")
+        
+        elif event_name == "hospital.deleted":
+            print(f"🏥 Hospital deleted: {data['data']['hospital_name']} has deleted their hospital: {data['data']}")
+            db: Session = next(get_db())
+            stmt = sqlalchemy_update(User).where(User.user_id == data['data']["created_by"]).values({"hospital_created": None})
+            db.execute(stmt)
+            db.commit()
 
 
 async def consume():
@@ -85,13 +91,14 @@ async def consume():
     queue = await channel.declare_queue("event_queue", durable=True)
 
     # Bind queue to exchange with routing keys for specific events
-    await queue.bind(exchange, routing_key="user.created")
-    await queue.bind(exchange, routing_key="request.created")
+    # await queue.bind(exchange, routing_key="user.created")
+    # await queue.bind(exchange, routing_key="request.created")
     await queue.bind(exchange, routing_key="hospital.created")
     await queue.bind(exchange, routing_key="hospital.updated")
+    await queue.bind(exchange, routing_key="hospital.deleted")
     await queue.bind(exchange, routing_key="user.logs.in")
-    await queue.bind(exchange, routing_key="request.accepted")
-    await queue.bind(exchange, routing_key="request.cancelled")
+    # await queue.bind(exchange, routing_key="request.accepted")
+    # await queue.bind(exchange, routing_key="request.cancelled")
 
 
 
@@ -99,7 +106,7 @@ async def consume():
     # Start consuming messages
     await queue.consume(process_message)
 
-    print(" [*] Waiting for events in Notification Service...")
+    print(" [*] Waiting for events in Authentication Service...")
     await asyncio.Future()  # Keep running forever
 
 if __name__ == "__main__":

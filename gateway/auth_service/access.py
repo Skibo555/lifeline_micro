@@ -35,7 +35,6 @@ def register(request):
                 f"http://0.0.0.0:8000/auth/users/register", json=request.model_dump()
             )
         if response.status_code == 200:
-            print(response.json())
             return response.json()
         elif response.status_code == 400:
             response.status_code = status.HTTP_400_BAD_REQUEST
@@ -115,9 +114,10 @@ def create_hospital(data: dict, user: dict):
         if response.status_code == 201:
             return response.json()
         else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise HTTPException(status_code=str(response.status_code), detail=str(response.json()["detail"]))
+    except Exception as ex:
+        print(ex.status_code)
+        raise HTTPException(status_code=int(ex.status_code), detail=str(ex.__dict__["detail"]))
 
 def update_hospital(data: dict, hospital_id: str, user: dict):
     if not user:
@@ -201,10 +201,8 @@ def make_request(user: dict, req: dict):
         )
     if response.status_code == 200:
         res = response.json()
-        print(res)
         # check if the user has a created hospital
         if not res.get('hospital_created'):
-            print(res)
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
 
     try:
@@ -225,10 +223,6 @@ def make_request(user: dict, req: dict):
         if request_serv.status_code != 201:
             return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"{request_serv.status_code}")
         return request_serv.json()
-        # elif not res['hospital_created']:
-        #     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
-        # else:
-        #     return HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Hospital not created by the user.")
     except Exception as ex:
         
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))    

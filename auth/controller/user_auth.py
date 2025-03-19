@@ -4,6 +4,7 @@ from fastapi import APIRouter, status, Depends, Response, Request
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import update as sqlalchemy_update
+from sqlalchemy import exc
 
 from database import get_db
 from rabbitmq_utils import publish_event
@@ -30,15 +31,19 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
         # Check if user already exists
         existing_user = db.query(User).filter(User.email == user.email).first()
         if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        # elif existing_user.username == user.username:
+        #     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Someone else uses that username")
+
         # Hash password & save user
         hashed_password = hash_password(user.password)
         user.password = hashed_password
         new_user = User(**user.model_dump())
-        # try:
         db.add(new_user)
         db.commit()
+
         db.refresh(new_user)
+
         message = "User account created successfully!"
         user_data = {
             "username": user.username,
@@ -63,9 +68,13 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
             "data": user_data
         }
 
-    except Exception as ex:
-        print(ex)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except exc.IntegrityError as ex:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Someone else uses that username")
+
+    # except Exception as ex:
+    #     print(f"I got GLOBAL EXCEPTION {ex}")
+    #     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Something unexpected happened")
 
 
 @app.post("/login", status_code=status.HTTP_200_OK)

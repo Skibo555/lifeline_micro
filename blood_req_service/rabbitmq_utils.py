@@ -38,8 +38,7 @@ async def publish_event(event_name: str, data: dict, exchange_name: str = "event
             routing_key=event_name  # Direct exchange uses routing key
         )
 
-        print(f"✅ Published event '{event_name}' to exchange '{exchange_name}'")
-
+        print(f"✅ Published event '{event_name}' to exchange '{exchange_name}' with routing key '{event_name}'")
 
 async def process_message(message: aio_pika.IncomingMessage):
     """
@@ -51,16 +50,16 @@ async def process_message(message: aio_pika.IncomingMessage):
 
         event_name = message.routing_key  # Get event type
 
-        if event_name == "user.created":
-            print(f"👤 New user registered: {data['data']}")
-        elif event_name == "request.created":
-            print(f"🩸 New blood request created: {data['data']}")
-        elif event_name == "hospital.created":
-            print(f"🏥 New hospital registered: {data['data']}")
-        elif event_name == "request.created":
-            print(f"A new request has been created: {data['data']}")
-        elif event_name == "request.accepted":
-            print(f"A request has been accepted: {data['data']}")
+        # if event_name == "user.created":
+        #     print(f"👤 New user registered: {data['data']}")
+        # elif event_name == "request.created":
+        #     print(f"🩸 New blood request created: {data['data']}")
+        # elif event_name == "hospital.created":
+        #     print(f"🏥 New hospital registered: {data['data']}")
+        # elif event_name == "request.created":
+        #     print(f"A new request has been created: {data['data']}")
+        # elif event_name == "request.accepted":
+        #     print(f"A request has been accepted: {data['data']}")
 
 async def consume():
     """
@@ -76,13 +75,13 @@ async def consume():
     queue = await channel.declare_queue("event_queue", durable=True)
 
     # Bind queue to exchange with routing keys for specific events
-    await queue.bind(exchange, routing_key="user.created")
-    await queue.bind(exchange, routing_key="request.created")
-    await queue.bind(exchange, routing_key="hospital.created")
-    await queue.bind(exchange, routing_key="hospital.updated")
-    await queue.bind(exchange, routing_key="user.logs.in")
-    await queue.bind(exchange, routing_key="request.accepted")
-    await queue.bind(exchange, routing_key="request.cancelled")
+    # await queue.bind(exchange, routing_key="user.created")
+    # await queue.bind(exchange, routing_key="request.created")
+    # await queue.bind(exchange, routing_key="hospital.created")
+    # await queue.bind(exchange, routing_key="hospital.updated")
+    # await queue.bind(exchange, routing_key="user.logs.in")
+    # await queue.bind(exchange, routing_key="request.accepted")
+    # await queue.bind(exchange, routing_key="request.cancelled")
 
     # Start consuming messages
     await queue.consume(process_message)

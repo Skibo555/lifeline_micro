@@ -37,12 +37,12 @@ async def process_message(message: aio_pika.IncomingMessage):
 
         event_name = message.routing_key  # Get event type
 
-        if event_name == "user.created":
-            print(f"👤 New user registered: {data['data']}")
-        elif event_name == "blood.request.created":
-            print(f"🩸 New blood request: {data['data']}")
-        elif event_name == "hospital.created":
-            print(f"🏥 New hospital registered: {data['data']}")
+        # if event_name == "user.created":
+        #     print(f"👤 New user registered: {data['data']}")
+        # elif event_name == "request.created":
+        #     print(f"🩸 New blood request: {data['data']}")
+        # elif event_name == "hospital.created":
+        #     print(f"🏥 New hospital registered: {data['data']}")
 
 async def consume():
     """
@@ -58,14 +58,14 @@ async def consume():
     queue = await channel.declare_queue("event_queue", durable=True)
 
     # Bind queue to exchange with routing keys for specific events
-    await queue.bind(exchange, routing_key="user.created")
-    await queue.bind(exchange, routing_key="blood.request.created")
-    await queue.bind(exchange, routing_key="hospital.created")
+    # await queue.bind(exchange, routing_key="user.created")
+    # await queue.bind(exchange, routing_key="blood.request.created")
+    # await queue.bind(exchange, routing_key="hospital.created")
 
     # Start consuming messages
     await queue.consume(process_message)
 
-    print(" [*] Waiting for events in Notification Service...")
+    print(" [*] Waiting for events in Hospital Service...")
     await asyncio.Future()  # Keep running forever
 
 if __name__ == "__main__":
