@@ -16,6 +16,7 @@ def json_serializer(obj):
         return obj.isoformat()  # Converts datetime to a string
     raise TypeError(f"Type {type(obj)} is not serializable")
 
+
 async def publish_event(event_name: str, data: dict, exchange_name: str = "events"):
     """
     Publishes an event to a RabbitMQ exchange (direct exchange).
@@ -46,13 +47,6 @@ async def process_message(message: aio_pika.IncomingMessage):
     async with message.process():  # Auto-acknowledge after processing
         body = message.body.decode()
         data = json.loads(body)
-        # print(data)
-
-        # db: Session = get_db()
-        # stmt = sqlalchemy_update(User).where(User.user_id == data['user_id']).values({"hospital_created": data["hospital_id"]})
-        # db.execute(stmt)
-        # db.commit()
-        # print(data)
 
         event_name = message.routing_key  # Get event type
 
@@ -61,15 +55,10 @@ async def process_message(message: aio_pika.IncomingMessage):
         elif event_name == "user.logs.in":
             print(f"🏥 {data['data']['username']} is now online: {data['data']}")
         elif event_name == "request.created":
-            print(f"🩸 New blood request: {data['data']}")
+            print(f"🩸 New blood request created: {data['data']}")
 
         elif event_name == "request.accepted":
             print(f"🩸 Blood request accepted: {data['data']}")
-
-            # db: Session = next(get_db())
-            # stmt = sqlalchemy_update(User).where(User.user_id == data['data']["created_by"]).values({"hospital_created": data["data"]["hospital_id"]})
-            # db.execute(stmt)
-            # db.commit()
 
         elif event_name == "hospital.created":
             # print(f"🏥 New hospital registered: {data['data']}")

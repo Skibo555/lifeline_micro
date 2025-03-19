@@ -9,12 +9,13 @@ class CreateHospital(BaseModel):
     email: EmailStr
     city: str
     state: str
-    # is_suspended: bool
     type: HospitalType
     status: HopitalStatus
     zip_code: int
     phone: str
     created_by: Optional[str] = None
+    lat: float
+    long: float
 
     class Config:
         from_attributes = True

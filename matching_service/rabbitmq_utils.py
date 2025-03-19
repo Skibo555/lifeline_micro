@@ -39,8 +39,9 @@ async def process_message(message: aio_pika.IncomingMessage):
 
         if event_name == "user.created":
             print(f"👤 New user registered: {data['data']}")
-        elif event_name == "blood.request.created":
-            print(f"🩸 New blood request: {data['data']}")
+        elif event_name == "request.created":
+            print(f"🩸 New blood request created: {data['data']}")
+            
         elif event_name == "hospital.created":
             print(f"🏥 New hospital registered: {data['data']}")
 
@@ -59,7 +60,7 @@ async def consume():
 
     # Bind queue to exchange with routing keys for specific events
     await queue.bind(exchange, routing_key="user.created")
-    await queue.bind(exchange, routing_key="blood.request.created")
+    await queue.bind(exchange, routing_key="equest.created")
     await queue.bind(exchange, routing_key="hospital.created")
 
     # Start consuming messages

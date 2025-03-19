@@ -201,13 +201,15 @@ def make_request(user: dict, req: dict):
         )
     if response.status_code == 200:
         res = response.json()
+        print(res)
         # check if the user has a created hospital
         if not res.get('hospital_created'):
+            print(res)
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
 
     try:
         hospital_id = res.get('hospital_created')
-        print(type(req["request_type"].name))
+        
         # convert the enums types to string
         req["request_type"] = req["request_type"].name
         req["request_status"] = req["request_status"].name
@@ -251,19 +253,19 @@ def get_request_single(user: dict, request_id: str):
 
 
 def get_requests(user: dict, req_status):
-    print("In get requests")
+    
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
     request_data = {
         "user": user,
         "status": req_status
     }
-    print(req_status)
+    
     try:
         response = requests.get(
                 f"http://0.0.0.0:8989/requests", json=request_data
             )
-        print(f"This is from the get request: {response}")
+        
         if response.status_code == 200:
             return response.json()
         else:
@@ -288,7 +290,6 @@ def cancel_request(user: dict, request_id: str):
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     except Exception as ex:
-        print(ex)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))
 
 
@@ -297,17 +298,17 @@ def accept_request(user: dict, request_id: str):
         "request_id": request_id,
         "user": user,
     }
-    print(request_id)
     try:
         response = requests.patch(
                 f"http://0.0.0.0:8989/requests/{request_id}/accept", json=request_data
             )
         if response.status_code == 200:
             return response.json()
+        if response.status_code == 409:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=response.json())
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     except Exception as ex:
-        print(ex)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(ex))
+        print(ex.__dict__)
+        raise HTTPException(status_code=ex.__dict__["status_code"], detail=str(ex.__dict__["detail"]["detail"]))
 
-# def check_

@@ -41,7 +41,6 @@ async def cancle_request(request_id: str, user = Depends(verify_token)):
 # accept a request
 @router.patch("/{request_id}/accept", status_code=status.HTTP_200_OK)
 async def accept(request_id: str, user = Depends(verify_token)):
-    print(request_id)
     response = access.accept_request(user=user, request_id=request_id)
     return response
 

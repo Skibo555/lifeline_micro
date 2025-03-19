@@ -1,7 +1,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Column, String, Integer, DateTime, func, Boolean, Enum, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, func, Boolean, Enum, ForeignKey, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -40,6 +40,9 @@ class Hospital(Base):
     phone = Column(String(15))
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    lat = Column(Float)
+    long = Column(Float)
+
 
     # This mimics how a reference to a foreignkey would work: Reference to the user who created the hospital
     created_by = Column(UUID(as_uuid=True), nullable=False, unique=True, default=uuid.uuid4)
