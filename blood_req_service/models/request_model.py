@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, create_engine
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func, create_engine, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 import uuid
@@ -21,6 +21,9 @@ class Request(Base):
     blood_type = Column(String(20), nullable=False)
     quantity = Column(Integer, nullable=False)
     accepted_user_id = Column(ARRAY(String(50)), nullable=True)
+    long = Column(Float, nullable=False)
+    lat = Column(Float, nullable=False)
+
 
 
     def __repr__(self):

@@ -20,6 +20,7 @@ router = APIRouter(tags=["Blood request service"], prefix="/requests")
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_request(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
+    print(data)
     user_info = data.get('user_data')
     has_role(required_roles=[UserRole.DONOR, UserRole.ADMIN,
                         UserRole.HOSPITAL_ADMIN, UserRole.REQUESTER,
@@ -36,7 +37,9 @@ async def create_request(request: Request, db: Session = Depends(get_db)):
         requester_id=user_info.get('user_id'),
         blood_type=request_data.get('blood_type'),
         quantity=request_data.get('quantity'),
-        accepted_user_id=[]
+        accepted_user_id=[],
+        long=request_data.get('longitude'),
+        lat=request_data.get('latitude')
     )
 
     try:
@@ -54,12 +57,15 @@ async def create_request(request: Request, db: Session = Depends(get_db)):
             "quantity": new_request.quantity,
             "accepted_user_id": str(new_request.accepted_user_id),
             "created_at": str(new_request.created_at),
-            "updated_at": str(new_request.updated_at)
+            "updated_at": str(new_request.updated_at),
+            "long": new_request.long,
+            "lat": new_request.lat
         }
 
         await publish_event(event_name='request.created', data=res)
         return new_request
     except Exception as e:
+        print(e)
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 

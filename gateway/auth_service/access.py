@@ -204,19 +204,34 @@ def make_request(user: dict, req: dict):
         # check if the user has a created hospital
         if not res.get('hospital_created'):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
+    
+    # the user's hospital longitude and latitude
+    details = {
+            "hospital_id": res.get('hospital_created'),
+            "user_data": user
+        }
+    hospital_data = requests.get(
+            f"http://0.0.0.0:8888/hospitals/{res.get('hospital_created')}", json=details
+        )
+    if hospital_data.status_code == 200:
+        hospital = hospital_data.json()
+        longitude = hospital["long"]
+        latitude = hospital["lat"]
 
-    try:
         hospital_id = res.get('hospital_created')
         
         # convert the enums types to string
         req["request_type"] = req["request_type"].name
         req["request_status"] = req["request_status"].name
         req["blood_type"] = req["blood_type"].name
+        req["longitude"] = longitude
+        req["latitude"] = latitude
         details = {
             "request": req,
             "user_data": user,
             "hospital_id": hospital_id
         }
+    try:
         request_serv = requests.post(
             f"http://0.0.0.0:8989/requests/create", json=details
         )
