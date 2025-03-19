@@ -2,6 +2,7 @@ import json
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import update as sqlalchemy_update
+from sqlalchemy import func
 
 from database import get_db
 from models.request_model import Request as RequestModel, RequestStatus
@@ -112,13 +113,11 @@ async def get_requests(request: Request, db: Session = Depends(get_db)):
 @router.patch("/{request_id}/cancel", status_code=status.HTTP_200_OK)
 async def cancel_request(request: Request, db: Session = Depends(get_db)):
     req = await request.json()
-    print(req)
     request_id = req.get('request_id')
     current_user = req.get('user')
     has_role(required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
 
     request = db.query(RequestModel).filter(RequestModel.request_id == request_id, RequestModel.requester_id == current_user["user_id"]).first()
-    print(request)
     if not request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found or you are not your request owner")
     # if request.requester_id != current_user['user_id']:
@@ -135,16 +134,18 @@ async def accept_request(request: Request, db: Session = Depends(get_db)):
     req = await request.json()
     request_id = req.get('request_id')
     current_user = req.get('user')
-    has_role(required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN], user=current_user)
+    has_role(required_roles=[UserRole.ADMIN, UserRole.HOSPITAL_ADMIN, UserRole.DONOR, UserRole.HOSPITAL_ADMIN, UserRole.REQUESTER, UserRole.VOLUNTEER], user=current_user)
 
     request = db.query(RequestModel).filter(RequestModel.request_id == request_id).first()
     
     if not request:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found or you are not your request owner")
-    # if request.requester_id != current_user['user_id']:
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the owner of this request, only the owner can cancel it.")
-    stmt = sqlalchemy_update(RequestModel).where(RequestModel.request_id == request_id).values({"request_status": "ACCEPTED"})
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    elif current_user["user_id"] in request.accepted_user_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You have already accepted this request")
+    
+    stmt = sqlalchemy_update(RequestModel).filter(RequestModel.request_id == request_id).values({"request_status": "ACCEPTED"})
     db.execute(stmt)
+    db.query(RequestModel).filter(RequestModel.request_id == request_id).update({RequestModel.accepted_user_id: func.array_append(RequestModel.accepted_user_id, current_user["user_id"])})
     db.commit()
     await publish_event(event_name='request.accepted', data=req)
     return "You have successfully accepted the request!"

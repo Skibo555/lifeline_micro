@@ -3,6 +3,13 @@ from datetime import datetime
 import aio_pika
 import asyncio
 
+from database import get_db
+from models.request_model import Request
+from sqlalchemy.orm import Session
+from sqlalchemy import update as sqlalchemy_update
+from sqlalchemy import func
+
+
 RABBITMQ_URL = "amqp://localhost/"
 
 def json_serializer(obj):
@@ -46,12 +53,14 @@ async def process_message(message: aio_pika.IncomingMessage):
 
         if event_name == "user.created":
             print(f"👤 New user registered: {data['data']}")
-        elif event_name == "blood.request.created":
-            print(f"🩸 New blood request: {data['data']}")
+        elif event_name == "request.created":
+            print(f"🩸 New blood request created: {data['data']}")
         elif event_name == "hospital.created":
             print(f"🏥 New hospital registered: {data['data']}")
         elif event_name == "request.created":
             print(f"A new request has been created: {data['data']}")
+        elif event_name == "request.accepted":
+            print(f"A request has been accepted: {data['data']}")
 
 async def consume():
     """
@@ -68,8 +77,12 @@ async def consume():
 
     # Bind queue to exchange with routing keys for specific events
     await queue.bind(exchange, routing_key="user.created")
-    await queue.bind(exchange, routing_key="blood.request.created")
+    await queue.bind(exchange, routing_key="request.created")
     await queue.bind(exchange, routing_key="hospital.created")
+    await queue.bind(exchange, routing_key="hospital.updated")
+    await queue.bind(exchange, routing_key="user.logs.in")
+    await queue.bind(exchange, routing_key="request.accepted")
+    await queue.bind(exchange, routing_key="request.cancelled")
 
     # Start consuming messages
     await queue.consume(process_message)
