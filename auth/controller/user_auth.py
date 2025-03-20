@@ -52,6 +52,7 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
             "last_name": user.last_name,
             "created_at": str(new_user.created_at),
             "updated_at": str(new_user.updated_at),
+            "address": new_user.address,
             "is_active": user.is_active,
             "email": user.email,
             "role": user.role,
