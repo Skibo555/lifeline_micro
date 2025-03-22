@@ -18,6 +18,9 @@ async def process_message(message: aio_pika.IncomingMessage):
             event_name = message.routing_key  
 
             print(f"📩 [{SERVICE_QUEUE_NAME}] Received event: {event_name}, Data: {data}")
+            if event_name == "match.found":
+                print(f"🩸 Match found for user: {data["data"]}")
+                
 
         except Exception as e:
             print(f"⚠️ Error processing message: {e}")

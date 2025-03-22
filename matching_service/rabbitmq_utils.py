@@ -1,7 +1,12 @@
 import json
 import aio_pika
 import asyncio
+import sys
+import os
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+from rabbitmq_service.communications.rabbitmq_publisher import rabbitmq_service
 from database import get_db
 from models import User
 from sqlalchemy.orm import Session
@@ -43,9 +48,12 @@ async def process_message(message: aio_pika.IncomingMessage):
                 users = db.query(User).all()
                 if not users:
                     return "No users found!"
-                print(users)
-                # find_nearest_users(request_lat=data['data']['lat'], request_long=data['data']['long'], users=users.__dict__)
-            
+                # print(type(users))
+                users_dict = [{key: value for key, value in user.__dict__.items() if not key.startswith('_')} for user in users]
+                print(users_dict)
+
+                users_nearby = find_nearest_users(request_lat=data['data']['lat'], request_long=data['data']['long'], users=users_dict)
+                await rabbitmq_service.publish_event(event_name="match.found", data=users_nearby)
 
         except Exception as e:
             print(f"⚠️ Error processing message: {e}")
