@@ -6,28 +6,6 @@ RABBITMQ_URL = "amqp://localhost/"
 EXCHANGE_NAME = "events"
 SERVICE_QUEUE_NAME = "hospital_service"
 
-async def publish_event(event_name: str, data: dict):
-    """
-    Publishes an event to the RabbitMQ exchange.
-    """
-    connection = await aio_pika.connect_robust(RABBITMQ_URL)
-    async with connection:
-        channel = await connection.channel()
-        exchange = await channel.declare_exchange(EXCHANGE_NAME, aio_pika.ExchangeType.DIRECT, durable=True)
-
-        message_body = json.dumps({"event": event_name, "data": data})
-
-        await exchange.publish(
-            aio_pika.Message(
-                body=message_body.encode(),
-                content_type="application/json",
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
-            ),
-            routing_key=event_name  
-        )
-
-        print(f"✅ Published event '{event_name}'")
-
 
 async def process_message(message: aio_pika.IncomingMessage):
     """
