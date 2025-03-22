@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 import json
 import aio_pika
 import asyncio
@@ -10,6 +11,8 @@ EXCHANGE_NAME = "events"
 def json_serializer(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()  # Converts datetime to a string
+    elif isinstance(obj, uuid.UUID):
+        return str(obj)  # Converts UUID to string
     raise TypeError(f"Type {type(obj)} is not serializable")
 
 

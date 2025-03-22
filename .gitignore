@@ -137,4 +137,5 @@ dmypy.json
 /hospital_service/.venv/
 /matching_service/.venv/
 /notification_service/.venv/
+/notification_service/.env
 /rabbitmq/.venv/

@@ -2,6 +2,8 @@ import json
 import aio_pika
 import asyncio
 
+from email_sender.send import send_email
+
 RABBITMQ_URL = "amqp://localhost/"
 EXCHANGE_NAME = "events"
 SERVICE_QUEUE_NAME = "notification_service"
@@ -17,9 +19,13 @@ async def process_message(message: aio_pika.IncomingMessage):
             data = json.loads(body)
             event_name = message.routing_key  
 
-            print(f"📩 [{SERVICE_QUEUE_NAME}] Received event: {event_name}, Data: {data}")
+            # print(f"📩 [{SERVICE_QUEUE_NAME}] Received event: {event_name}, Data: {data}")
             if event_name == "match.found":
-                print(f"🩸 Match found for user: {data["data"]}")
+                # print(f"🩸 Match found for user: {data["data"]}")
+                print(f"This is the lenght of the object {len(data["data"])}")
+                for user in data["data"]:
+                    await send_email(user)
+                    print(f"🩸 Notifying user: {user["username"]}")
                 
 
         except Exception as e:

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 import aio_pika
 import asyncio
 import sys
@@ -50,9 +51,10 @@ async def process_message(message: aio_pika.IncomingMessage):
                     return "No users found!"
                 # print(type(users))
                 users_dict = [{key: value for key, value in user.__dict__.items() if not key.startswith('_')} for user in users]
-                print(users_dict)
 
                 users_nearby = find_nearest_users(request_lat=data['data']['lat'], request_long=data['data']['long'], users=users_dict)
+                print(users_nearby)
+                # json_format = json.dumps({"data": users_nearby}, default=json_serializer)
                 await rabbitmq_service.publish_event(event_name="match.found", data=users_nearby)
 
         except Exception as e:
