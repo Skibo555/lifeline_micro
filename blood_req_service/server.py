@@ -1,4 +1,8 @@
-import json
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import update as sqlalchemy_update
@@ -7,7 +11,7 @@ from sqlalchemy import func
 from database import get_db
 from models.request_model import Request as RequestModel, RequestStatus
 from models.enums import UserRole
-from rabbitmq_utils import publish_event
+from rabbitmq_service.communications.rabbitmq_publisher import rabbitmq_service
 from utils import has_role
 
 
@@ -62,7 +66,7 @@ async def create_request(request: Request, db: Session = Depends(get_db)):
             "lat": new_request.lat
         }
 
-        await publish_event(event_name='request.created', data=res)
+        await rabbitmq_service.publish_event(event_name='request.created', data=res)
         return new_request
     except Exception as e:
         print(e)
@@ -131,7 +135,7 @@ async def cancel_request(request: Request, db: Session = Depends(get_db)):
     stmt = sqlalchemy_update(RequestModel).where(RequestModel.request_id == request_id).values({"request_status": "CANCELLED"})
     db.execute(stmt)
     db.commit()
-    await publish_event(event_name='request.cancelled', data=req)
+    await rabbitmq_service.publish_event(event_name='request.cancelled', data=req)
     return "You have successfully cancelled the request!"
 
 
@@ -153,5 +157,5 @@ async def accept_request(request: Request, db: Session = Depends(get_db)):
     db.execute(stmt)
     db.query(RequestModel).filter(RequestModel.request_id == request_id).update({RequestModel.accepted_user_id: func.array_append(RequestModel.accepted_user_id, current_user["user_id"])})
     db.commit()
-    await publish_event(event_name='request.accepted', data=req)
+    await rabbitmq_service.publish_event(event_name='request.accepted', data=req)
     return "You have successfully accepted the request!"

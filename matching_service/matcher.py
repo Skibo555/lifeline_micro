@@ -1,9 +1,6 @@
 from math import radians, cos, sin, sqrt, atan2
 from typing import List, Dict
 
-import sqlalchemy
-
-from models import User
 
 # Haversine formula to calculate the distance between two lat/long points
 def haversine(hospital_lat, hospital_lon, user_lat, user_long):
@@ -17,11 +14,12 @@ def haversine(hospital_lat, hospital_lon, user_lat, user_long):
     return R * c  # Distance in km
 
 # Function to find the nearest users to a hospital
-def find_nearest_users(hospital_lat: float, hospital_long: float, users: List[Dict], max_distance: float = 10):
+def find_nearest_users(request_lat: float, request_long: float, users: List[Dict], max_distance: float = 10):
+
     nearby_users = []
     
     for user in users:
-        distance = haversine(hospital_lat, hospital_long, user["lat"], user["long"])
+        distance = haversine(request_lat, request_long, user["lat"], user["long"])
         if distance <= max_distance:  # Only consider users within the given radius (e.g., 10 km)
             nearby_users.append({**user, "distance": round(distance, 2)})
     print(sorted(nearby_users, key=lambda x: x["distance"]))

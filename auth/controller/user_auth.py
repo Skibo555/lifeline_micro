@@ -1,4 +1,8 @@
-import json
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
 
 from fastapi import APIRouter, status, Depends, Response, Request
 from fastapi.exceptions import HTTPException
@@ -7,7 +11,7 @@ from sqlalchemy import update as sqlalchemy_update
 from sqlalchemy import exc
 
 from database import get_db
-from rabbitmq_utils import publish_event
+from rabbitmq_service.communications.rabbitmq_publisher import rabbitmq_service
 
 from schemas.user import UserCreate, UserResponse, UserListResponse, LoginForm
 from models.user import User
@@ -62,7 +66,7 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
             "lat": user.lat
         }
 
-        await publish_event(event_name="user.created", data=user_data)
+        await rabbitmq_service.publish_event(event_name="user.created", data=user_data)
 
         return {
             "message": message,
@@ -107,7 +111,7 @@ async def login(form_data: LoginForm, db: Session = Depends(get_db)):
         "long": user.long,
         "lat": user.lat
     }
-    await publish_event(event_name="user.logs.in", data=user_data)
+    await rabbitmq_service.publish_event(event_name="user.logs.in", data=user_data)
     # print({"access_token": access_token, "token_type": "Bearer", "data": user_data})
     return {"access_token": access_token, "token_type": "Bearer", "data": user_data}
 
@@ -149,6 +153,7 @@ async def update_user(user_id: str, request: Request, db: Session = Depends(get_
         db.execute(stmt)
         db.commit()
         db.refresh(user)
+        await rabbitmq_service.publish_event(event_name="user.updated", data=user)
         return user
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Another user is using the email you provided")
@@ -176,6 +181,7 @@ async def delete(current_user: dict, user_id: str, db: Session = Depends(get_db)
     try:
         db.delete(user)
         db.commit()
+        await rabbitmq_service.publish_event(event_name="user.deleted", data=user)
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     

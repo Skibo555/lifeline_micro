@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from schemas.hospital import CreateHospital, UpdateHospital, HospitalResponse, ListHospitalResponse
 from sqlalchemy.orm import Session
@@ -5,7 +11,7 @@ from models.hospital_model import Hospital, UserRole
 from sqlalchemy import update as sqlalchemy_update
 
 from database import get_db
-from rabbitmq_utils import publish_event
+from rabbitmq_service.communications.rabbitmq_publisher import rabbitmq_service
 
 from utils import (
     has_role
@@ -54,7 +60,7 @@ async def create(request: Request, db: Session = Depends(get_db)):
             }
 
             # Publish event to RabbitMQ
-            await publish_event(event_name="hospital.created", data=res)
+            await rabbitmq_service.publish_event(event_name="hospital.created", data=res)
             return res
 
         except Exception as ex:
@@ -79,7 +85,7 @@ async def update(request: Request, db: Session = Depends(get_db)):
     db.refresh(existing_hospital)
 
     # Publish event to RabbitMQ
-    await publish_event("hospital.updated", **existing_hospital.__dict__)
+    await rabbitmq_service.publish_event("hospital.updated", **existing_hospital.__dict__)
     return existing_hospital
 
 
@@ -129,5 +135,5 @@ async def delete(request: Request, db: Session = Depends(get_db)):
     db.delete(existing_hospitals)
 
     # Publish event to RabbitMQ
-    await publish_event(event_name="hospital.deleted", data=existing_hospitals.__dict__)
+    await rabbitmq_service.publish_event(event_name="hospital.deleted", data=existing_hospitals.__dict__)
     db.commit()

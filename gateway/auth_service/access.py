@@ -3,7 +3,7 @@ from fastapi import status, HTTPException, Response
 
 from schemas.hospital import CreateHospital, UpdateHospital
 from dotenv import load_dotenv
-from rabbitmq_utils import publish_event
+# from rabbitmq_utils import publish_event
 
 load_dotenv()
 
@@ -201,6 +201,7 @@ def make_request(user: dict, req: dict):
         )
     if response.status_code == 200:
         res = response.json()
+        print(f"The none is coming from here: {res}")
         # check if the user has a created hospital
         if not res.get('hospital_created'):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You need to have an hospital created first.")
@@ -215,6 +216,7 @@ def make_request(user: dict, req: dict):
         )
     if hospital_data.status_code == 200:
         hospital = hospital_data.json()
+        print(hospital)
         longitude = hospital["long"]
         latitude = hospital["lat"]
 

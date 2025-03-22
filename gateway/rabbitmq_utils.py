@@ -3,71 +3,75 @@ import aio_pika
 import asyncio
 
 RABBITMQ_URL = "amqp://localhost/"
+EXCHANGE_NAME = "events"
+SERVICE_QUEUE_NAME = "gateway_service"
 
-async def publish_event(event_name: str, data: dict, exchange_name: str = "events"):
+async def publish_event(event_name: str, data: dict):
     """
-    Publishes an event to a RabbitMQ exchange (direct exchange).
+    Publishes an event to the RabbitMQ exchange.
     """
     connection = await aio_pika.connect_robust(RABBITMQ_URL)
     async with connection:
         channel = await connection.channel()
+        exchange = await channel.declare_exchange(EXCHANGE_NAME, aio_pika.ExchangeType.DIRECT, durable=True)
 
-        # Declare exchange (direct type)
-        exchange = await channel.declare_exchange(exchange_name, aio_pika.ExchangeType.DIRECT)
-
-        # Convert message to JSON
         message_body = json.dumps({"event": event_name, "data": data})
 
-        # Publish message with routing key (event_name)
         await exchange.publish(
-            aio_pika.Message(body=message_body.encode(), content_type="application/json"),
-            routing_key=event_name  # Direct exchange uses routing key
+            aio_pika.Message(
+                body=message_body.encode(),
+                content_type="application/json",
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+            ),
+            routing_key=event_name  
         )
 
-        print(f"✅ Published event '{event_name}' to exchange '{exchange_name}'")
+        print(f"✅ Published event '{event_name}'")
 
 
 async def process_message(message: aio_pika.IncomingMessage):
     """
-    Async function to process incoming messages.
+    Processes incoming RabbitMQ messages.
     """
-    async with message.process():  # Auto-acknowledge after processing
-        body = message.body.decode()
-        data = json.loads(body)
+    async with message.process():  
+        try:
+            body = message.body.decode()
+            data = json.loads(body)
+            event_name = message.routing_key  
 
-        event_name = message.routing_key  # Get event type
+            print(f"📩 [{SERVICE_QUEUE_NAME}] Received event: {event_name}, Data: {data}")
+            
+        except Exception as e:
+            print(f"⚠️ Error processing message: {e}")
+            await message.nack(requeue=False)  # Reject message permanently if error occurs
 
-        # if event_name == "user.created":
-        #     print(f"👤 New user registered: {data['data']}")
-        # elif event_name == "request.created":
-        #     print(f"🩸 New blood request: {data['data']}")
-        # elif event_name == "hospital.created":
-        #     print(f"🏥 New hospital registered: {data['data']}")
 
 async def consume():
     """
-    Async consumer to listen for events.
+    Consumer function to listen for RabbitMQ events.
     """
-    connection = await aio_pika.connect_robust(RABBITMQ_URL)
-    channel = await connection.channel()
+    while True:
+        try:
+            connection = await aio_pika.connect_robust(RABBITMQ_URL)
+            channel = await connection.channel()
+            exchange = await channel.declare_exchange(EXCHANGE_NAME, aio_pika.ExchangeType.TOPIC, durable=True)
+            queue = await channel.declare_queue(SERVICE_QUEUE_NAME, durable=True)
 
-    # Declare exchange
-    exchange = await channel.declare_exchange("events", aio_pika.ExchangeType.DIRECT)
+            # await queue.bind(exchange, routing_key="request.created")
 
-    # Declare queue
-    queue = await channel.declare_queue("event_queue", durable=True)
+            await channel.set_qos(prefetch_count=1)
+            await queue.consume(process_message)
 
-    # Bind queue to exchange with routing keys for specific events
-    # await queue.bind(exchange, routing_key="user.created")
-    # await queue.bind(exchange, routing_key="request.created")
-    # await queue.bind(exchange, routing_key="hospital.created")
+            print(f" [*] Waiting for events on {SERVICE_QUEUE_NAME}...")
 
-    # Start consuming messages
-    await queue.consume(process_message)
+            await asyncio.Future()  # Keep running forever
 
-    print(" [*] Waiting for events in Gateway Service...")
-    await asyncio.Future()  # Keep running forever
+        except Exception as e:
+            print(f"⚠️ Connection lost: {e}. Reconnecting in 5 seconds...")
+            await asyncio.sleep(5)
+
 
 if __name__ == "__main__":
-    asyncio.run(consume())  # Run consumer
-
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(consume())
+    loop.run_forever()

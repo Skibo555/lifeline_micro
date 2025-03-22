@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSON
 import uuid
 
 
-from .enums import UserRole
+from . enums import UserRole
 from database import Base
 # from .request import Request
 # from .donation import Donation
