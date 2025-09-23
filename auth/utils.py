@@ -67,7 +67,7 @@ def is_requester(user: dict):
     if user["role"] != UserRole.REQUESTER.value:
         raise HTTPException(status_code=403, detail="Access denied: Requesters only")
     return user
-
+  
 def is_volunteer(user: dict):
     if user["role"] != UserRole.VOLUNTEER.value:
         raise HTTPException(status_code=403, detail="Access denied: Volunteers only")
