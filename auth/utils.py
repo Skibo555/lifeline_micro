@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from models.user import User
 from models.enums import UserRole
 from database import get_db
-
+           
 load_dotenv()
 
 # security = HTTPBearer()
@@ -56,7 +56,7 @@ def create_access_token(data):
 def is_donor(user: dict):
     if user["role"] != UserRole.DONOR.value:
         raise HTTPException(status_code=403, detail="Access denied: Donors only")
-    return user         
+    return user 
 
 def is_admin(user: dict):
     if user["role"] != UserRole.ADMIN.value:
