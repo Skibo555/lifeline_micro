@@ -18,7 +18,7 @@ from database import get_db
 load_dotenv()
 
 # security = HTTPBearer()
-
+                                 
 
 
 # Define a class to manage authentication
