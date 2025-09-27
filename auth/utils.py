@@ -11,13 +11,13 @@ from sqlalchemy.sql import func
 from dotenv import load_dotenv
 
 
-from models.user import User
+from models.user import User  
 from models.enums import UserRole
 from database import get_db
-           
+
 load_dotenv()
 
-# security = HTTPBearer()
+# security = HTTPBearer()                 
                                  
 
 
